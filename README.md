@@ -8,7 +8,8 @@ Back-references two Docker images to their source code repository and prints the
 
 Unless properly labeled with relevant metadata, Docker containers are complete black boxes.
 One can hardly say which version of the code is packaged inside a container, and even less tie a container back to the source code repository...
-... unless you label it such information during CI. See https://github.com/weaveworks/build-tools/issues/102 for a discussion on enforcing labels in our build system.
+
+... unless you label it such information during CI. See https://github.com/weaveworks/build-tools/issues/102 for a discussion on enforcing labels in our build system and https://github.com/weaveworks/service/issues/1623 for the equivalent service issue. This would also help us improve our [security updates for docker images](https://github.com/weaveworks/service-conf/issues/1541).
 
 ## How?
 
