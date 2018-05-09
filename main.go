@@ -74,13 +74,15 @@ func vcsURLAndRef(labels map[string]string) (string, string) {
 	vcsURL := ""
 	vcsRef := ""
 	for label, value := range labels {
-		if strings.HasPrefix(label, "org.label-schema") {
-			switch label {
-			case "org.label-schema.vcs-url":
-				vcsURL = value
-			case "org.label-schema.vcs-ref":
-				vcsRef = value
-			}
+		switch label {
+		case "org.opencontainers.image.source":
+			vcsURL = value
+		case "org.label-schema.vcs-url":
+			vcsURL = value
+		case "org.opencontainers.image.revision":
+			vcsRef = value
+		case "org.label-schema.vcs-ref":
+			vcsRef = value
 		}
 	}
 	return vcsURL, vcsRef
