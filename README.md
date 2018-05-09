@@ -31,6 +31,7 @@ One can hardly say which version of the code is packaged inside a container, and
 ## Example
 
 ```bash
+$ dep ensure -update
 $ go run main.go microscaling/microscaling:0.9.0 microscaling/microscaling:0.9.1
 45b22cb Merge pull request #40 from microscaling/k8s-labels
 91740fb Bump version
