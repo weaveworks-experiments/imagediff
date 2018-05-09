@@ -16,7 +16,6 @@ import (
 	"github.com/src-d/go-git/storage/memory"
 
 	git "gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
@@ -123,7 +122,11 @@ var errFound = errors.New("<Found>")
 // Once the following PR is merged, we should be able to do this in a more elegant way.
 // See also: https://github.com/src-d/go-git/pull/706
 func commit(r *git.Repository, shortHash string) *object.Commit {
-	commitsIter, err := r.Log(&git.LogOptions{From: plumbing.NewHash(shortHash)})
+	head, err := r.Head()
+	if err != nil {
+		panic(err)
+	}
+	commitsIter, err := r.Log(&git.LogOptions{From: head.Hash()})
 	if err != nil {
 		panic(err)
 	}
