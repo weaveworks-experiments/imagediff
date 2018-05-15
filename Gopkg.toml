@@ -27,7 +27,13 @@
 
 [[constraint]]
   name = "github.com/docker/docker"
-  version = "1.13.1"
+  version = "v17.05.0-ce"
+
+# Force docker/distribution to match what docker/docker had as a dependency:
+# https://github.com/moby/moby/blob/v17.05.0-ce/vendor.conf#L48:32
+[[constraint]]
+  name = "github.com/docker/distribution"
+  revision = "b38e5838b7b2f2ad48e06ec4b500011976080621"
 
 [[constraint]]
   name = "github.com/src-d/go-git"
