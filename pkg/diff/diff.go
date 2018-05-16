@@ -49,11 +49,7 @@ func pull(docker *client.Client, imageName string) {
 }
 
 func imageLabels(docker *client.Client, imageName string) map[string]string {
-	args := filters.NewArgs()
-	args.Add("reference", imageName)
-	images, err := docker.ImageList(context.Background(), types.ImageListOptions{
-		Filters: args,
-	})
+	images, err := imageList(docker, imageName)
 	if err != nil {
 		panic(err)
 	}
@@ -61,6 +57,14 @@ func imageLabels(docker *client.Client, imageName string) map[string]string {
 		return image.Labels
 	}
 	panic("Image not found: " + imageName)
+}
+
+func imageList(docker *client.Client, imageName string) ([]types.ImageSummary, error) {
+	args := filters.NewArgs()
+	args.Add("reference", imageName)
+	return docker.ImageList(context.Background(), types.ImageListOptions{
+		Filters: args,
+	})
 }
 
 func vcsURLAndRef(labels map[string]string) (string, string) {
