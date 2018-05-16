@@ -1,11 +1,10 @@
-package main
+package diff
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -19,12 +18,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
-func main() {
-	if len(os.Args) != 3 {
-		panic("Please provide two Docker image tags to compare")
-	}
-	x := os.Args[1]
-	y := os.Args[2]
+func Diff(x, y string) {
 	docker, err := client.NewEnvClient()
 	if err != nil {
 		panic(err)
