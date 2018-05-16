@@ -37,6 +37,17 @@ func Diff(x, y string) {
 }
 
 func pull(docker *client.Client, imageName string) {
+	// Pulling images is pretty slow (i.e. takes a few seconds), even if the
+	// image is already present locally. We therefore check if there are
+	// already present locally first.
+	images, err := imageList(docker, imageName)
+	if err != nil {
+		panic(err)
+	}
+	if len(images) > 0 {
+		fmt.Printf("image [%v] already pulled.\n", imageName)
+		return
+	}
 	resp, err := docker.ImagePull(context.Background(), imageName, types.ImagePullOptions{})
 	if err != nil {
 		panic(err)
