@@ -29,6 +29,12 @@
   version = "v1.0.5"
 
 [[projects]]
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+  version = "v1.1.0"
+
+[[projects]]
   name = "github.com/docker/distribution"
   packages = [
     ".",
@@ -168,6 +174,12 @@
   version = "v0.8.0"
 
 [[projects]]
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
+
+[[projects]]
   name = "github.com/sergi/go-diff"
   packages = ["diffmatchpatch"]
   revision = "1744e2970ca51c86172c8190fadad617561ed6e7"
@@ -193,8 +205,14 @@
 [[projects]]
   name = "github.com/src-d/go-git"
   packages = ["storage/memory"]
-  revision = "b30763cb64afa91c016b23e905af0a378eb1b76d"
-  version = "v4.3.1"
+  revision = "57570e84f8c5739f0f4a59387493e590e709dde9"
+  version = "v4.4.0"
+
+[[projects]]
+  name = "github.com/stretchr/testify"
+  packages = ["assert"]
+  revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
+  version = "v1.2.1"
 
 [[projects]]
   branch = "master"
@@ -314,8 +332,8 @@
     "utils/merkletrie/internal/frame",
     "utils/merkletrie/noder"
   ]
-  revision = "b30763cb64afa91c016b23e905af0a378eb1b76d"
-  version = "v4.3.1"
+  revision = "57570e84f8c5739f0f4a59387493e590e709dde9"
+  version = "v4.4.0"
 
 [[projects]]
   name = "gopkg.in/warnings.v0"
@@ -326,6 +344,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4ca5f850f370615435fa2af842f42f69a579f6be113c06e812c0db35e75ab2c4"
+  inputs-digest = "d9068c9d6c27594e7590ccb56e334c4eaa31818b3555bf85dc2fc92730921461"
   solver-name = "gps-cdcl"
   solver-version = 1
