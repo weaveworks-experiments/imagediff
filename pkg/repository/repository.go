@@ -8,11 +8,11 @@ import (
 
 // GitRepository encapsulates data and behavior about a Git repository.
 type GitRepository struct {
-	host  string
-	org   string
-	repo  string
-	https string
-	ssh   string
+	Host         string
+	Organization string
+	Repository   string
+	HTTPS        string
+	SSH          string
 }
 
 // New creates a new instance of GitRepository from the provided HTTPS URL or SSH connection string.
@@ -22,26 +22,12 @@ func New(url string) (*GitRepository, error) {
 		return nil, err
 	}
 	return &GitRepository{
-		host: host,
-		org:  org,
-		repo: repo,
+		Host:         host,
+		Organization: org,
+		Repository:   repo,
+		HTTPS:        fmt.Sprintf("https://%v/%v/%v.git", host, org, repo),
+		SSH:          fmt.Sprintf("git@%v:%v/%v.git", host, org, repo),
 	}, nil
-}
-
-// HTTPS endpoint to reach this Git repository.
-func (r GitRepository) HTTPS() string {
-	if r.https == "" {
-		r.https = fmt.Sprintf("https://%v/%v/%v.git", r.host, r.org, r.repo)
-	}
-	return r.https
-}
-
-// SSH endpoint to reach this Git repository.
-func (r GitRepository) SSH() string {
-	if r.ssh == "" {
-		r.ssh = fmt.Sprintf("git@%v:%v/%v.git", r.host, r.org, r.repo)
-	}
-	return r.ssh
 }
 
 func parseURL(url string) (string, string, string, error) {

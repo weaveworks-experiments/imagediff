@@ -217,7 +217,7 @@ func validate(x, y string, xRepo, yRepo *repository.GitRepository, xRev, yRev st
 	if yRev == "" {
 		panic("No commit hash for " + y)
 	}
-	if xRepo.HTTPS() != yRepo.HTTPS() || xRepo.SSH() != yRepo.SSH() {
+	if xRepo.HTTPS != yRepo.HTTPS || xRepo.SSH != yRepo.SSH {
 		panic("Source code in different repositories")
 	}
 }
@@ -225,7 +225,7 @@ func validate(x, y string, xRepo, yRepo *repository.GitRepository, xRev, yRev st
 func gitClone(repo *repository.GitRepository) *git.Repository {
 	storage := memory.NewStorage()
 	r, err := git.Clone(storage, nil, &git.CloneOptions{
-		URL: repo.HTTPS(),
+		URL: repo.HTTPS,
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "authentication required") {
@@ -241,7 +241,7 @@ func gitClone(repo *repository.GitRepository) *git.Repository {
 			signer, err := ssh.ParsePrivateKey(sshKey)
 			auth := &git_ssh.PublicKeys{User: "git", Signer: signer}
 			r, err = git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
-				URL:      repo.SSH(),
+				URL:      repo.SSH,
 				Auth:     auth,
 				Progress: os.Stdout,
 			})

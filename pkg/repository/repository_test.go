@@ -11,40 +11,55 @@ func TestNewRepositoryFromSSH(t *testing.T) {
 	r, err := repository.New("git@foo.com:bar/baz.git")
 	assert.NoError(t, err)
 	assert.NotNil(t, r)
-	assert.Equal(t, "https://foo.com/bar/baz.git", r.HTTPS())
-	assert.Equal(t, "git@foo.com:bar/baz.git", r.SSH())
+	assert.Equal(t, "foo.com", r.Host)
+	assert.Equal(t, "bar", r.Organization)
+	assert.Equal(t, "baz", r.Repository)
+	assert.Equal(t, "https://foo.com/bar/baz.git", r.HTTPS)
+	assert.Equal(t, "git@foo.com:bar/baz.git", r.SSH)
 }
 
 func TestNewRepositoryFromHTTPS(t *testing.T) {
 	r, err := repository.New("https://foo.com/bar/baz.git")
 	assert.NoError(t, err)
 	assert.NotNil(t, r)
-	assert.Equal(t, "https://foo.com/bar/baz.git", r.HTTPS())
-	assert.Equal(t, "git@foo.com:bar/baz.git", r.SSH())
+	assert.Equal(t, "foo.com", r.Host)
+	assert.Equal(t, "bar", r.Organization)
+	assert.Equal(t, "baz", r.Repository)
+	assert.Equal(t, "https://foo.com/bar/baz.git", r.HTTPS)
+	assert.Equal(t, "git@foo.com:bar/baz.git", r.SSH)
 }
 
 func TestNewRepositoryFromHTTPSWithoutDotGit(t *testing.T) {
 	r, err := repository.New("https://foo.com/bar/baz")
 	assert.NoError(t, err)
 	assert.NotNil(t, r)
-	assert.Equal(t, "https://foo.com/bar/baz.git", r.HTTPS())
-	assert.Equal(t, "git@foo.com:bar/baz.git", r.SSH())
+	assert.Equal(t, "foo.com", r.Host)
+	assert.Equal(t, "bar", r.Organization)
+	assert.Equal(t, "baz", r.Repository)
+	assert.Equal(t, "https://foo.com/bar/baz.git", r.HTTPS)
+	assert.Equal(t, "git@foo.com:bar/baz.git", r.SSH)
 }
 
 func TestNewRepositoryFromHTTPSWithoutDotGitWithPath(t *testing.T) {
 	r, err := repository.New("https://foo.com/bar/baz/tree/master/path/to/some/dir")
 	assert.NoError(t, err)
 	assert.NotNil(t, r)
-	assert.Equal(t, "https://foo.com/bar/baz.git", r.HTTPS())
-	assert.Equal(t, "git@foo.com:bar/baz.git", r.SSH())
+	assert.Equal(t, "foo.com", r.Host)
+	assert.Equal(t, "bar", r.Organization)
+	assert.Equal(t, "baz", r.Repository)
+	assert.Equal(t, "https://foo.com/bar/baz.git", r.HTTPS)
+	assert.Equal(t, "git@foo.com:bar/baz.git", r.SSH)
 }
 
 func TestNewRepositoryFromHTTPSWithPath(t *testing.T) {
 	r, err := repository.New("https://foo.com/bar/baz.git/tree/master/path/to/some/dir")
 	assert.NoError(t, err)
 	assert.NotNil(t, r)
-	assert.Equal(t, "https://foo.com/bar/baz.git", r.HTTPS())
-	assert.Equal(t, "git@foo.com:bar/baz.git", r.SSH())
+	assert.Equal(t, "foo.com", r.Host)
+	assert.Equal(t, "bar", r.Organization)
+	assert.Equal(t, "baz", r.Repository)
+	assert.Equal(t, "https://foo.com/bar/baz.git", r.HTTPS)
+	assert.Equal(t, "git@foo.com:bar/baz.git", r.SSH)
 }
 
 func TestNewRepositoryFromInvalidString(t *testing.T) {
