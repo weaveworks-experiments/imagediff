@@ -1,16 +1,18 @@
 package main
 
 import (
-	"os"
-
 	"github.com/weaveworks-experiments/imagediff/pkg/diff"
+
+	flag "github.com/spf13/pflag"
 )
 
 func main() {
-	if len(os.Args) != 3 {
+	flag.Parse()
+	args := flag.Args()
+	if len(args) != 2 {
 		panic("Please provide two Docker image tags to compare")
 	}
-	x := os.Args[1]
-	y := os.Args[2]
+	x := args[0]
+	y := args[1]
 	diff.Diff(x, y)
 }
