@@ -103,6 +103,14 @@ func imageExistsLocally(docker *client.Client, imageName string) (bool, error) {
 	return len(images) > 0, nil
 }
 
+func imageList(docker *client.Client, imageName string) ([]types.ImageSummary, error) {
+	args := filters.NewArgs()
+	args.Add("reference", imageName)
+	return docker.ImageList(context.Background(), types.ImageListOptions{
+		Filters: args,
+	})
+}
+
 func getDockerCredentials(dockerConfigPath, imageName string) (string, error) {
 	if dockerConfigPath != "" {
 		creds, err := getDockerCredentialsFrom(dockerConfigPath, imageName)
@@ -163,22 +171,11 @@ func encodeAuthConfig(authConfig types.AuthConfig) (string, error) {
 }
 
 func imageLabels(docker *client.Client, imageName string) map[string]string {
-	images, err := imageList(docker, imageName)
+	inspect, _, err := docker.ImageInspectWithRaw(context.Background(), imageName)
 	if err != nil {
 		panic(err)
 	}
-	for _, image := range images {
-		return image.Labels
-	}
-	panic("Image not found: " + imageName)
-}
-
-func imageList(docker *client.Client, imageName string) ([]types.ImageSummary, error) {
-	args := filters.NewArgs()
-	args.Add("reference", imageName)
-	return docker.ImageList(context.Background(), types.ImageListOptions{
-		Filters: args,
-	})
+	return inspect.Config.Labels
 }
 
 func vcsURLAndRef(labels map[string]string) (string, string) {
