@@ -13,6 +13,7 @@ import (
 
 	"github.com/weaveworks-experiments/imagediff/pkg/image"
 	imagediff_registry "github.com/weaveworks-experiments/imagediff/pkg/registry"
+	"github.com/weaveworks-experiments/imagediff/pkg/repository"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -41,12 +42,18 @@ func Diff(x, y string, options Options) {
 	pull(docker, y, options.DockerConfigPath)
 	xLabels := imageLabels(docker, x)
 	yLabels := imageLabels(docker, y)
-	xVcsURL, xVcsRef := vcsURLAndRef(xLabels)
-	yVcsURL, yVcsRef := vcsURLAndRef(yLabels)
-	validate(x, y, xVcsURL, yVcsURL, xVcsRef, yVcsRef)
-	r := gitClone(xVcsURL)
-	xCommit := commit(r, xVcsRef)
-	yCommit := commit(r, yVcsRef)
+	xRepo, xRev, err := repoAndRevision(xLabels)
+	if err != nil {
+		panic(err)
+	}
+	yRepo, yRev, err := repoAndRevision(yLabels)
+	if err != nil {
+		panic(err)
+	}
+	validate(x, y, xRepo, yRepo, xRev, yRev)
+	r := gitClone(xRepo)
+	xCommit := commit(r, xRev)
+	yCommit := commit(r, yRev)
 	printChangeLog(xCommit, yCommit)
 }
 
@@ -178,7 +185,7 @@ func imageLabels(docker *client.Client, imageName string) map[string]string {
 	return inspect.Config.Labels
 }
 
-func vcsURLAndRef(labels map[string]string) (string, string) {
+func repoAndRevision(labels map[string]string) (*repository.GitRepository, string, error) {
 	vcsURL := ""
 	vcsRef := ""
 	for label, value := range labels {
@@ -193,31 +200,29 @@ func vcsURLAndRef(labels map[string]string) (string, string) {
 			vcsRef = value
 		}
 	}
-	return vcsURL, vcsRef
+	repo, err := repository.New(vcsURL)
+	if err != nil {
+		return nil, "", err
+	}
+	return repo, vcsRef, nil
 }
 
-func validate(x, y, xVcsURL, yVcsURL, xVcsRef, yVcsRef string) {
-	if xVcsURL == "" {
-		panic("No repository for " + x)
-	}
-	if yVcsURL == "" {
-		panic("No repository for " + y)
-	}
-	if xVcsRef == "" {
+func validate(x, y string, xRepo, yRepo *repository.GitRepository, xRev, yRev string) {
+	if xRev == "" {
 		panic("No commit hash for " + x)
 	}
-	if yVcsRef == "" {
+	if yRev == "" {
 		panic("No commit hash for " + y)
 	}
-	if xVcsURL != yVcsURL {
+	if xRepo.HTTPS() != yRepo.HTTPS() || xRepo.SSH() != yRepo.SSH() {
 		panic("Source code in different repositories")
 	}
 }
 
-func gitClone(vcsURL string) *git.Repository {
+func gitClone(repo *repository.GitRepository) *git.Repository {
 	storage := memory.NewStorage()
 	r, err := git.Clone(storage, nil, &git.CloneOptions{
-		URL: vcsURL,
+		URL: repo.HTTPS(),
 	})
 	if err != nil {
 		panic(err)
