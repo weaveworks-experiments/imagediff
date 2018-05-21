@@ -1,11 +1,18 @@
 package diff
 
 import (
+	"bufio"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
+
+	"github.com/weaveworks-experiments/imagediff/pkg/image"
+	imagediff_registry "github.com/weaveworks-experiments/imagediff/pkg/registry"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -13,18 +20,25 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/term"
 	"github.com/src-d/go-git/storage/memory"
+	"golang.org/x/crypto/ssh/terminal"
 
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
-func Diff(x, y string) {
+// Options encapsulates the various options we can pass in to "diff" two container images.
+type Options struct {
+	DockerConfigPath string
+}
+
+// Diff diffs the provided images.
+func Diff(x, y string, options Options) {
 	docker, err := client.NewEnvClient()
 	if err != nil {
 		panic(err)
 	}
-	pull(docker, x)
-	pull(docker, y)
+	pull(docker, x, options.DockerConfigPath)
+	pull(docker, y, options.DockerConfigPath)
 	xLabels := imageLabels(docker, x)
 	yLabels := imageLabels(docker, y)
 	xVcsURL, xVcsRef := vcsURLAndRef(xLabels)
@@ -36,27 +50,116 @@ func Diff(x, y string) {
 	printChangeLog(xCommit, yCommit)
 }
 
-func pull(docker *client.Client, imageName string) {
+func pull(docker *client.Client, imageName, dockerConfigPath string) {
 	// Pulling images is pretty slow (i.e. takes a few seconds), even if the
 	// image is already present locally. We therefore check if there are
 	// already present locally first.
-	images, err := imageList(docker, imageName)
+	exists, err := imageExistsLocally(docker, imageName)
 	if err != nil {
 		panic(err)
 	}
-	if len(images) > 0 {
-		fmt.Printf("image [%v] already pulled.\n", imageName)
+	if exists {
 		return
 	}
-	resp, err := docker.ImagePull(context.Background(), imageName, types.ImagePullOptions{})
+	fmt.Printf("Pulling [%v]...\n", imageName)
+	resp, err := docker.ImagePull(context.Background(), imageName, types.ImagePullOptions{
+		PrivilegeFunc: func() (string, error) {
+			fmt.Printf("Failed to pull %v: unauthorised.\n", imageName)
+			return getDockerCredentials(dockerConfigPath, imageName)
+		},
+	})
 	if err != nil {
-		panic(err)
+		// Some registries (e.g. quay.io) return a 500 instead of a 403 for:
+		//   "unauthorized: access to the requested resource is not authorized"
+		// hence the above PrivilegeFunc will not be called, and we need to
+		// provide credentials ourselves.
+		if strings.Contains(err.Error(), "unauthorized:") {
+			credentials, err := getDockerCredentials(dockerConfigPath, imageName)
+			if err != nil {
+				panic(err)
+			}
+			resp, err = docker.ImagePull(context.Background(), imageName, types.ImagePullOptions{
+				RegistryAuth: credentials,
+			})
+			if err != nil {
+				panic(err)
+			}
+		} else {
+			panic(err)
+		}
 	}
 	defer resp.Close()
 	fd, isTerminal := term.GetFdInfo(ioutil.Discard)
 	if err := jsonmessage.DisplayJSONMessagesStream(resp, ioutil.Discard, fd, isTerminal, nil); err != nil {
 		panic(err)
 	}
+}
+
+func imageExistsLocally(docker *client.Client, imageName string) (bool, error) {
+	images, err := imageList(docker, imageName)
+	if err != nil {
+		return false, err
+	}
+	return len(images) > 0, nil
+}
+
+func getDockerCredentials(dockerConfigPath, imageName string) (string, error) {
+	if dockerConfigPath != "" {
+		creds, err := getDockerCredentialsFrom(dockerConfigPath, imageName)
+		if err == nil {
+			return creds, nil
+		}
+	}
+	creds, err := getDockerCredentialsFrom("~/.docker/config.json", imageName)
+	if err == nil {
+		return creds, nil
+	}
+	return askForCredentials(imageName)
+}
+
+func getDockerCredentialsFrom(dockerConfigPath, imageName string) (string, error) {
+	fmt.Printf("Reading credentials from [%v]...\n", dockerConfigPath)
+	configs, err := imagediff_registry.ReadAuthConfigs(dockerConfigPath)
+	if err != nil {
+		return "", err
+	}
+	img := image.Image(imageName)
+	config, ok := configs[img.Registry()]
+	if ok {
+		encodedConfig, err := encodeAuthConfig(config)
+		if err != nil {
+			return "", err
+		}
+		return encodedConfig, nil
+	}
+	return "", errors.New("not found")
+}
+
+func askForCredentials(imageName string) (string, error) {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Enter your username: ")
+	username, err := reader.ReadString('\n')
+	if err != nil {
+		return "", err
+	}
+	fmt.Print("Enter your password: ")
+	passwordBytes, err := terminal.ReadPassword(0)
+	if err != nil {
+		return "", err
+	}
+	return encodeAuthConfig(types.AuthConfig{
+		Username:      strings.TrimSpace(username),
+		Password:      string(passwordBytes),
+		ServerAddress: image.Image(imageName).Registry(),
+	})
+}
+
+func encodeAuthConfig(authConfig types.AuthConfig) (string, error) {
+	bytes, err := json.Marshal(authConfig)
+	if err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(bytes), nil
 }
 
 func imageLabels(docker *client.Client, imageName string) map[string]string {
