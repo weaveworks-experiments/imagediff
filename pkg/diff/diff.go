@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/user"
 	"strings"
 
 	"github.com/weaveworks-experiments/imagediff/pkg/image"
@@ -21,10 +22,12 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/term"
 	"github.com/src-d/go-git/storage/memory"
+	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
 
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	git_ssh "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 )
 
 // Options encapsulates the various options we can pass in to "diff" two container images.
@@ -225,7 +228,29 @@ func gitClone(repo *repository.GitRepository) *git.Repository {
 		URL: repo.HTTPS(),
 	})
 	if err != nil {
-		panic(err)
+		if strings.Contains(err.Error(), "authentication required") {
+			usr, err := user.Current()
+			if err != nil {
+				panic(err)
+			}
+			sshKeyPath := fmt.Sprintf("%v/.ssh/id_rsa", usr.HomeDir)
+			sshKey, err := ioutil.ReadFile(sshKeyPath)
+			if err != nil {
+				panic(err)
+			}
+			signer, err := ssh.ParsePrivateKey(sshKey)
+			auth := &git_ssh.PublicKeys{User: "git", Signer: signer}
+			r, err = git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
+				URL:      repo.SSH(),
+				Auth:     auth,
+				Progress: os.Stdout,
+			})
+			if err != nil {
+				panic(err)
+			}
+		} else {
+			panic(err)
+		}
 	}
 	return r
 }
