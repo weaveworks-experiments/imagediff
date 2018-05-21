@@ -5,7 +5,29 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
-## 17.05.0-ce (2017-05-03)
+## 17.03.2-ce (2017-05-29)
+
+### Networking
+
+- Fix a concurrency issue preventing network creation [#33273](https://github.com/moby/moby/pull/33273)
+
+### Runtime
+
+- Relabel secrets path to avoid a Permission Denied on selinux enabled systems [#33236](https://github.com/moby/moby/pull/33236) (ref [#32529](https://github.com/moby/moby/pull/32529)
+- Fix cases where local volume were not properly relabeled if needed [#33236](https://github.com/moby/moby/pull/33236) (ref [#29428](https://github.com/moby/moby/pull/29428))
+- Fix an issue while upgrading if a plugin rootfs was still mounted [#33236](https://github.com/moby/moby/pull/33236) (ref [#32525](https://github.com/moby/moby/pull/32525))
+- Fix an issue where volume wouldn't default to the `rprivate` propagation mode [#33236](https://github.com/moby/moby/pull/33236) (ref [#32851](https://github.com/moby/moby/pull/32851))
+- Fix a panic that could occur when a volume driver could not be retrieved [#33236](https://github.com/moby/moby/pull/33236) (ref [#32347](https://github.com/moby/moby/pull/32347))
++ Add a warning in `docker info` when the `overlay` or `overlay2` graphdriver is used on a filesystem without `d_type` support [#33236](https://github.com/moby/moby/pull/33236) (ref [#31290](https://github.com/moby/moby/pull/31290))
+- Fix an issue with backporting mount spec to older volumes [#33207](https://github.com/moby/moby/pull/33207)
+- Fix issue where a failed unmount can lead to data loss on local volume remove [#33120](https://github.com/moby/moby/pull/33120)
+
+### Swarm Mode
+
+- Fix a case where tasks could get killed unexpectedly [#33118](https://github.com/moby/moby/pull/33118)
+- Fix an issue preventing to deploy services if the registry cannot be reached despite the needed images being locally present [#33117](https://github.com/moby/moby/pull/33117)
+
+## 17.05.0-ce (2017-05-04)
 
 ### Builder
 
@@ -190,7 +212,7 @@ be found.
 * Update runc to 54296cf40ad8143b62dbcaa1d90e520a2136ddfe [#31666](https://github.com/docker/docker/pull/31666)
  * Ignore cgroup2 mountpoints [opencontainers/runc#1266](https://github.com/opencontainers/runc/pull/1266)
 * Update containerd to 4ab9917febca54791c5f071a9d1f404867857fcc [#31662](https://github.com/docker/docker/pull/31662) [#31852](https://github.com/docker/docker/pull/31852)
- * Register healtcheck service before calling restore() [docker/containerd#609](https://github.com/docker/containerd/pull/609)
+ * Register healthcheck service before calling restore() [docker/containerd#609](https://github.com/docker/containerd/pull/609)
 * Fix `docker exec` not working after unattended upgrades that reload apparmor profiles [#31773](https://github.com/docker/docker/pull/31773)
 * Fix unmounting layer without merge dir with Overlay2 [#31069](https://github.com/docker/docker/pull/31069)
 * Do not ignore "volume in use" errors when force-delete [#31450](https://github.com/docker/docker/pull/31450)
@@ -1087,12 +1109,12 @@ installing docker, please make sure to update them accordingly.
 + Add security options to `docker info` output [#21172](https://github.com/docker/docker/pull/21172) [#23520](https://github.com/docker/docker/pull/23520)
 + Add insecure registries to `docker info` output [#20410](https://github.com/docker/docker/pull/20410)
 + Extend Docker authorization with TLS user information [#21556](https://github.com/docker/docker/pull/21556)
-+ devicemapper: expose Mininum Thin Pool Free Space through `docker info` [#21945](https://github.com/docker/docker/pull/21945)
++ devicemapper: expose Minimum Thin Pool Free Space through `docker info` [#21945](https://github.com/docker/docker/pull/21945)
 * API now returns a JSON object when an error occurs making it more consistent [#22880](https://github.com/docker/docker/pull/22880)
 - Prevent `docker run -i --restart` from hanging on exit [#22777](https://github.com/docker/docker/pull/22777)
 - Fix API/CLI discrepancy on hostname validation [#21641](https://github.com/docker/docker/pull/21641)
 - Fix discrepancy in the format of sizes in `stats` from HumanSize to BytesSize [#21773](https://github.com/docker/docker/pull/21773)
-- authz: when request is denied return forbbiden exit code (403) [#22448](https://github.com/docker/docker/pull/22448)
+- authz: when request is denied return forbidden exit code (403) [#22448](https://github.com/docker/docker/pull/22448)
 - Windows: fix tty-related displaying issues [#23878](https://github.com/docker/docker/pull/23878)
 
 ### Runtime
@@ -1887,7 +1909,7 @@ by another client (#15489)
 
 #### Remote API
 
-- Fix unmarshalling of Command and Entrypoint
+- Fix unmarshaling of Command and Entrypoint
 - Set limit for minimum client version supported
 - Validate port specification
 - Return proper errors when attach/reattach fail
@@ -2284,7 +2306,7 @@ by another client (#15489)
 - Use mock for search tests.
 - Update to double-dash everywhere.
 - Move .dockerenv parsing to lxc driver.
-- Move all bind-mounts in the container inside the namespace.
+- Move all bind mounts in the container inside the namespace.
 - Don't use separate bind mount for container.
 - Always symlink /dev/ptmx for libcontainer.
 - Don't kill by pid for other drivers.
@@ -2572,7 +2594,7 @@ With the ongoing changes to the networking and execution subsystems of docker te
 - Fix ADD caching issue with . prefixed path
 - Fix docker build on devicemapper by reverting sparse file tar option
 - Fix issue with file caching and prevent wrong cache hit
-* Use same error handling while unmarshalling CMD and ENTRYPOINT
+* Use same error handling while unmarshaling CMD and ENTRYPOINT
 
 #### Documentation
 
@@ -2719,7 +2741,7 @@ With the ongoing changes to the networking and execution subsystems of docker te
 + Implement `docker log -f` to stream logs
 + Add env variable to disable kernel version warning
 + Add -format to `docker inspect`
-+ Support bind-mount for files
++ Support bind mount for files
 - Fix bridge creation on RHEL
 - Fix image size calculation
 - Make sure iptables are called even if the bridge already exists

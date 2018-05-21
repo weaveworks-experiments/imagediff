@@ -24,16 +24,21 @@
 #   go-tests = true
 #   unused-packages = true
 
-
 [[constraint]]
   name = "github.com/docker/docker"
-  version = "v17.05.0-ce"
+  revision = "b963b55a8a3fec0e97feeb07427a91e29c870284"
 
-# Force docker/distribution to match what docker/docker had as a dependency:
-# https://github.com/moby/moby/blob/v17.05.0-ce/vendor.conf#L48:32
+# Force docker/distribution to match what docker/docker has as a dependency:
+# https://github.com/moby/moby/blob/b963b55/vendor.conf#L62
 [[constraint]]
   name = "github.com/docker/distribution"
-  revision = "b38e5838b7b2f2ad48e06ec4b500011976080621"
+  revision = "83389a148052d74ac602f5f1d62f86ff2f3c4aa5"
+
+# Force sirupsen/logrus to match what docker/docker has as a dependency:
+# https://github.com/moby/moby/blob/b963b55/vendor.conf#L13
+[[constraint]]
+  name = "github.com/sirupsen/logrus"
+  version = "v1.0.3"
 
 [[constraint]]
   name = "github.com/src-d/go-git"
