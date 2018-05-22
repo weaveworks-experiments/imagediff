@@ -9,36 +9,30 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/user"
 	"strings"
-
-	"github.com/weaveworks-experiments/imagediff/pkg/image"
-	imagediff_registry "github.com/weaveworks-experiments/imagediff/pkg/registry"
-	"github.com/weaveworks-experiments/imagediff/pkg/repository"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/term"
-	"github.com/src-d/go-git/storage/memory"
-	"golang.org/x/crypto/ssh"
+	log "github.com/sirupsen/logrus"
+	"github.com/weaveworks-experiments/imagediff/pkg/image"
+	imagediff_registry "github.com/weaveworks-experiments/imagediff/pkg/registry"
+	"github.com/weaveworks-experiments/imagediff/pkg/repository"
 	"golang.org/x/crypto/ssh/terminal"
-
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	git_ssh "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // Options encapsulates the various options we can pass in to "diff" two container images.
 type Options struct {
 	DockerConfigPath string
+	GitOptions       *repository.Options
 }
 
 // Diff diffs the provided images.
-func Diff(x, y string, options Options) ([]*Change, error) {
+func Diff(x, y string, options *Options) ([]*Change, error) {
 	docker, err := client.NewEnvClient()
 	if err != nil {
 		return nil, err
@@ -68,7 +62,7 @@ func Diff(x, y string, options Options) ([]*Change, error) {
 	if err := validate(xRepo, yRepo); err != nil {
 		return nil, err
 	}
-	r, err := gitClone(xRepo)
+	r, err := xRepo.Clone(options.GitOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -241,44 +235,6 @@ func validate(xRepo, yRepo *repository.GitRepository) error {
 		return fmt.Errorf("source code repositories do not match: %v != %v", xRepo, yRepo)
 	}
 	return nil
-}
-
-func gitClone(repo *repository.GitRepository) (*git.Repository, error) {
-	logger := log.WithField("repository", *repo)
-	logger.Info("cloning repository via HTTPS")
-	storage := memory.NewStorage()
-	r, err := git.Clone(storage, nil, &git.CloneOptions{
-		URL: repo.HTTPS(),
-	})
-	if err != nil {
-		if strings.Contains(err.Error(), "authentication required") {
-			logger.WithField("err", err).Info("cloning via HTTPS failed, now retrying via SSH")
-			usr, err := user.Current()
-			if err != nil {
-				return nil, err
-			}
-			sshKeyPath := fmt.Sprintf("%v/.ssh/id_rsa", usr.HomeDir)
-			if _, err := os.Stat(sshKeyPath); err != nil {
-				return nil, err
-			}
-			sshKey, err := ioutil.ReadFile(sshKeyPath)
-			if err != nil {
-				return nil, err
-			}
-			signer, err := ssh.ParsePrivateKey(sshKey)
-			auth := &git_ssh.PublicKeys{User: "git", Signer: signer}
-			r, err = git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
-				URL:  repo.SSH(),
-				Auth: auth,
-			})
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, err
-		}
-	}
-	return r, nil
 }
 
 var errFound = errors.New("<Found>")
