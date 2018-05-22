@@ -258,6 +258,9 @@ func gitClone(repo *repository.GitRepository) (*git.Repository, error) {
 				return nil, err
 			}
 			sshKeyPath := fmt.Sprintf("%v/.ssh/id_rsa", usr.HomeDir)
+			if _, err := os.Stat(sshKeyPath); err != nil {
+				return nil, err
+			}
 			sshKey, err := ioutil.ReadFile(sshKeyPath)
 			if err != nil {
 				return nil, err
