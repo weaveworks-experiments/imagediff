@@ -244,13 +244,15 @@ func validate(xRepo, yRepo *repository.GitRepository) error {
 }
 
 func gitClone(repo *repository.GitRepository) (*git.Repository, error) {
-	log.WithField("repository", *repo).Info("cloning repository")
+	logger := log.WithField("repository", *repo)
+	logger.Info("cloning repository via HTTPS")
 	storage := memory.NewStorage()
 	r, err := git.Clone(storage, nil, &git.CloneOptions{
 		URL: repo.HTTPS(),
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "authentication required") {
+			logger.WithField("err", err).Info("cloning via HTTPS failed, now retrying via SSH")
 			usr, err := user.Current()
 			if err != nil {
 				return nil, err
