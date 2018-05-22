@@ -28,6 +28,8 @@ import (
 	git "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	git_ssh "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Options encapsulates the various options we can pass in to "diff" two container images.
@@ -36,45 +38,68 @@ type Options struct {
 }
 
 // Diff diffs the provided images.
-func Diff(x, y string, options Options) {
+func Diff(x, y string, options Options) ([]*Change, error) {
 	docker, err := client.NewEnvClient()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	pull(docker, x, options.DockerConfigPath)
-	pull(docker, y, options.DockerConfigPath)
-	xLabels := imageLabels(docker, x)
-	yLabels := imageLabels(docker, y)
+	if err := pull(docker, x, options.DockerConfigPath); err != nil {
+		return nil, err
+	}
+	if err := pull(docker, y, options.DockerConfigPath); err != nil {
+		return nil, err
+	}
+	xLabels, err := imageLabels(docker, x)
+	if err != nil {
+		return nil, err
+	}
+	yLabels, err := imageLabels(docker, y)
+	if err != nil {
+		return nil, err
+	}
 	xRepo, xRev, err := repoAndRevision(xLabels)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	yRepo, yRev, err := repoAndRevision(yLabels)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	validate(x, y, xRepo, yRepo, xRev, yRev)
-	r := gitClone(xRepo)
-	xCommit := commit(r, xRev)
-	yCommit := commit(r, yRev)
-	printChangeLog(xCommit, yCommit)
+	if err := validate(xRepo, yRepo); err != nil {
+		return nil, err
+	}
+	r, err := gitClone(xRepo)
+	if err != nil {
+		return nil, err
+	}
+	xCommit, err := commit(r, xRev)
+	if err != nil {
+		return nil, err
+	}
+	yCommit, err := commit(r, yRev)
+	if err != nil {
+		return nil, err
+	}
+	return changeLog(xCommit, yCommit)
 }
 
-func pull(docker *client.Client, imageName, dockerConfigPath string) {
+func pull(docker *client.Client, imageName, dockerConfigPath string) error {
+	logger := log.WithFields(log.Fields{"image": imageName})
 	// Pulling images is pretty slow (i.e. takes a few seconds), even if the
 	// image is already present locally. We therefore check if there are
 	// already present locally first.
 	exists, err := imageExistsLocally(docker, imageName)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	if exists {
-		return
+		logger.Info("image already exists locally, nothing to pull")
+		return nil
 	}
-	fmt.Printf("Pulling [%v]...\n", imageName)
+	logger.Info("pulling image")
 	resp, err := docker.ImagePull(context.Background(), imageName, types.ImagePullOptions{
 		PrivilegeFunc: func() (string, error) {
-			fmt.Printf("Failed to pull %v: unauthorised.\n", imageName)
+			logger.Errorf("failed to pull image")
 			return getDockerCredentials(dockerConfigPath, imageName)
 		},
 	})
@@ -86,23 +111,21 @@ func pull(docker *client.Client, imageName, dockerConfigPath string) {
 		if strings.Contains(err.Error(), "unauthorized:") {
 			credentials, err := getDockerCredentials(dockerConfigPath, imageName)
 			if err != nil {
-				panic(err)
+				return err
 			}
 			resp, err = docker.ImagePull(context.Background(), imageName, types.ImagePullOptions{
 				RegistryAuth: credentials,
 			})
 			if err != nil {
-				panic(err)
+				return err
 			}
 		} else {
-			panic(err)
+			return err
 		}
 	}
 	defer resp.Close()
 	fd, isTerminal := term.GetFdInfo(ioutil.Discard)
-	if err := jsonmessage.DisplayJSONMessagesStream(resp, ioutil.Discard, fd, isTerminal, nil); err != nil {
-		panic(err)
-	}
+	return jsonmessage.DisplayJSONMessagesStream(resp, ioutil.Discard, fd, isTerminal, nil)
 }
 
 func imageExistsLocally(docker *client.Client, imageName string) (bool, error) {
@@ -136,7 +159,7 @@ func getDockerCredentials(dockerConfigPath, imageName string) (string, error) {
 }
 
 func getDockerCredentialsFrom(dockerConfigPath, imageName string) (string, error) {
-	fmt.Printf("Reading credentials from [%v]...\n", dockerConfigPath)
+	log.WithFields(log.Fields{"image": imageName, "path": dockerConfigPath}).Info("reading Docker credentials")
 	configs, err := imagediff_registry.ReadAuthConfigs(dockerConfigPath)
 	if err != nil {
 		return "", err
@@ -180,12 +203,12 @@ func encodeAuthConfig(authConfig types.AuthConfig) (string, error) {
 	return base64.URLEncoding.EncodeToString(bytes), nil
 }
 
-func imageLabels(docker *client.Client, imageName string) map[string]string {
+func imageLabels(docker *client.Client, imageName string) (map[string]string, error) {
 	inspect, _, err := docker.ImageInspectWithRaw(context.Background(), imageName)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return inspect.Config.Labels
+	return inspect.Config.Labels, nil
 }
 
 func repoAndRevision(labels map[string]string) (*repository.GitRepository, string, error) {
@@ -207,22 +230,21 @@ func repoAndRevision(labels map[string]string) (*repository.GitRepository, strin
 	if err != nil {
 		return nil, "", err
 	}
+	if vcsRef == "" {
+		return nil, "", errors.New("no revision")
+	}
 	return repo, vcsRef, nil
 }
 
-func validate(x, y string, xRepo, yRepo *repository.GitRepository, xRev, yRev string) {
-	if xRev == "" {
-		panic("No commit hash for " + x)
+func validate(xRepo, yRepo *repository.GitRepository) error {
+	if *xRepo != *yRepo {
+		return fmt.Errorf("source code repositories do not match: %v != %v", xRepo, yRepo)
 	}
-	if yRev == "" {
-		panic("No commit hash for " + y)
-	}
-	if xRepo.HTTPS != yRepo.HTTPS || xRepo.SSH != yRepo.SSH {
-		panic("Source code in different repositories")
-	}
+	return nil
 }
 
-func gitClone(repo *repository.GitRepository) *git.Repository {
+func gitClone(repo *repository.GitRepository) (*git.Repository, error) {
+	log.WithField("repository", *repo).Info("cloning repository")
 	storage := memory.NewStorage()
 	r, err := git.Clone(storage, nil, &git.CloneOptions{
 		URL: repo.HTTPS,
@@ -231,28 +253,27 @@ func gitClone(repo *repository.GitRepository) *git.Repository {
 		if strings.Contains(err.Error(), "authentication required") {
 			usr, err := user.Current()
 			if err != nil {
-				panic(err)
+				return nil, err
 			}
 			sshKeyPath := fmt.Sprintf("%v/.ssh/id_rsa", usr.HomeDir)
 			sshKey, err := ioutil.ReadFile(sshKeyPath)
 			if err != nil {
-				panic(err)
+				return nil, err
 			}
 			signer, err := ssh.ParsePrivateKey(sshKey)
 			auth := &git_ssh.PublicKeys{User: "git", Signer: signer}
 			r, err = git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
-				URL:      repo.SSH,
-				Auth:     auth,
-				Progress: os.Stdout,
+				URL:  repo.SSH,
+				Auth: auth,
 			})
 			if err != nil {
-				panic(err)
+				return nil, err
 			}
 		} else {
-			panic(err)
+			return nil, err
 		}
 	}
-	return r
+	return r, nil
 }
 
 var errFound = errors.New("<Found>")
@@ -260,14 +281,14 @@ var errFound = errors.New("<Found>")
 // Workaround to resolve a short hash to a full commit object.
 // Once the following PR is merged, we should be able to do this in a more elegant way.
 // See also: https://github.com/src-d/go-git/pull/706
-func commit(r *git.Repository, shortHash string) *object.Commit {
+func commit(r *git.Repository, shortHash string) (*object.Commit, error) {
 	head, err := r.Head()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	commitsIter, err := r.Log(&git.LogOptions{From: head.Hash()})
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	var commit *object.Commit
 	err = commitsIter.ForEach(func(c *object.Commit) error {
@@ -278,20 +299,28 @@ func commit(r *git.Repository, shortHash string) *object.Commit {
 		return nil
 	})
 	if err == nil || err != errFound {
-		panic(fmt.Sprintf("Commit with short hash %s could not be found: %s", shortHash, err))
+		return nil, fmt.Errorf("commit with short hash [%s] could not be found: %s", shortHash, err)
 	}
-	return commit
+	return commit, nil
 }
 
-func printChangeLog(xCommit, yCommit *object.Commit) {
+// Change encapsulates the revision number and commit message for a code change.
+type Change struct {
+	Revision string
+	Message  string
+}
+
+func changeLog(xCommit, yCommit *object.Commit) ([]*Change, error) {
+	changeLog := []*Change{}
 	err := object.NewCommitPostorderIter(yCommit, nil).ForEach(func(c *object.Commit) error {
 		if c.Hash == xCommit.Hash {
 			return errFound
 		}
-		fmt.Printf("%s %s\n", c.Hash.String()[:7], strings.Split(c.Message, "\n")[0])
+		changeLog = append(changeLog, &Change{Revision: c.Hash.String(), Message: c.Message})
 		return nil
 	})
 	if err == nil || err != errFound {
-		panic(fmt.Sprintf("Commit with hash %s could not be found: %s", xCommit.Hash, err))
+		return nil, fmt.Errorf("commit with hash [%s] could not be found: %s", xCommit.Hash, err)
 	}
+	return changeLog, nil
 }

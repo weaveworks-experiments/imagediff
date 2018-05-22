@@ -1,9 +1,11 @@
 package main
 
 import (
-	"github.com/weaveworks-experiments/imagediff/pkg/diff"
+	"fmt"
 
+	log "github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
+	"github.com/weaveworks-experiments/imagediff/pkg/diff"
 )
 
 func main() {
@@ -11,11 +13,20 @@ func main() {
 	flag.Parse()
 	args := flag.Args()
 	if len(args) != 2 {
-		panic("Please provide two Docker image tags to compare")
+		log.Fatal("Please provide two Docker image tags to compare")
 	}
 	x := args[0]
 	y := args[1]
-	diff.Diff(x, y, diff.Options{
+	changeLog, err := diff.Diff(x, y, diff.Options{
 		DockerConfigPath: string(*dockerConfigPath),
 	})
+	if err != nil {
+		log.WithFields(log.Fields{
+			"x": x,
+			"y": y,
+		}).Fatal(err)
+	}
+	for _, change := range changeLog {
+		fmt.Printf("%v %v\n", change.Revision[:7], change.Message)
+	}
 }
