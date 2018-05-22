@@ -11,8 +11,16 @@ type GitRepository struct {
 	Host         string
 	Organization string
 	Repository   string
-	HTTPS        string
-	SSH          string
+}
+
+// HTTPS URL to clone this repository.
+func (r GitRepository) HTTPS() string {
+	return fmt.Sprintf("https://%v/%v/%v.git", r.Host, r.Organization, r.Repository)
+}
+
+// SSH endpoint to clone this repository.
+func (r GitRepository) SSH() string {
+	return fmt.Sprintf("git@%v:%v/%v.git", r.Host, r.Organization, r.Repository)
 }
 
 // New creates a new instance of GitRepository from the provided HTTPS URL or SSH connection string.
@@ -25,8 +33,6 @@ func New(url string) (*GitRepository, error) {
 		Host:         host,
 		Organization: org,
 		Repository:   repo,
-		HTTPS:        fmt.Sprintf("https://%v/%v/%v.git", host, org, repo),
-		SSH:          fmt.Sprintf("git@%v:%v/%v.git", host, org, repo),
 	}, nil
 }
 

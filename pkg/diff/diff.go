@@ -247,7 +247,7 @@ func gitClone(repo *repository.GitRepository) (*git.Repository, error) {
 	log.WithField("repository", *repo).Info("cloning repository")
 	storage := memory.NewStorage()
 	r, err := git.Clone(storage, nil, &git.CloneOptions{
-		URL: repo.HTTPS,
+		URL: repo.HTTPS(),
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "authentication required") {
@@ -263,7 +263,7 @@ func gitClone(repo *repository.GitRepository) (*git.Repository, error) {
 			signer, err := ssh.ParsePrivateKey(sshKey)
 			auth := &git_ssh.PublicKeys{User: "git", Signer: signer}
 			r, err = git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
-				URL:  repo.SSH,
+				URL:  repo.SSH(),
 				Auth: auth,
 			})
 			if err != nil {
