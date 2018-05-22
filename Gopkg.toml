@@ -40,6 +40,23 @@
   name = "github.com/sirupsen/logrus"
   version = "v1.0.3"
 
+# Force prometheus/client_golang to match v0.9.0-pre1, which contains the below type:
+#
+# > $ git log --pretty=oneline -S"type Observer interface"
+# > d01fd6222241828327e3507d64c90f796673bad0 new handler instrumentation (#285)
+# > 8496756f6dba0a23a5fde5bd986f4e3233e55ef6 Turn timer helper into a struct with methods
+#
+# > $ git tag --contains 8496756f6dba0a23a5fde5bd986f4e3233e55ef6
+# > v0.9.0-pre1
+#
+# as otherwise, the build fails with:
+# > # github.com/weaveworks-experiments/imagediff/vendor/github.com/docker/go-metrics
+# > vendor/github.com/docker/go-metrics/timer.go:39:4: undefined: prometheus.Observer
+#
+[[override]]
+  name = "github.com/prometheus/client_golang"
+  version = "v0.9.0-pre1"
+
 [[constraint]]
   name = "github.com/src-d/go-git"
   version = "4.3.1"
